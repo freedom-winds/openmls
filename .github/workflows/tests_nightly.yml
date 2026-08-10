@@ -35,7 +35,13 @@ jobs:
           - { name: fork-resolution, arg: "-F fork-resolution" }
           - { name: extensions-draft, arg: "-F extensions-draft,extensions-draft-test-dependencies" }
           - { name: virtual-clients-draft, arg: "-F virtual-clients-draft,virtual-clients-draft-test-dependencies" }
-          - { name: pq-ciphersuites, arg: "-F draft-ietf-mls-pq-ciphersuites" }
+          # The PQ ciphersuites more than double the ciphersuite list that
+          # openmls_test expands every test over. Compiling and linking the
+          # resulting test crates with the default parallelism of one rustc
+          # per core exceeds the memory of the hosted runners, which get
+          # killed mid-build (exit code 143) in both debug and release mode.
+          # Cap the number of parallel build jobs for these two jobs only.
+          - { name: pq-ciphersuites, arg: "-F draft-ietf-mls-pq-ciphersuites", build_jobs: "--jobs 2" }
     runs-on: ubuntu-latest
     name: full matrix (${{ matrix.mode.name }}/${{ matrix.features.name }})
     steps:
@@ -45,5 +51,5 @@ jobs:
 
       - name: Tests with all providers and ciphersuites
         run: |
-          cargo test ${{ matrix.mode.arg }} -p openmls --verbose --no-default-features \
+          cargo test ${{ matrix.mode.arg }} ${{ matrix.features.build_jobs }} -p openmls --verbose --no-default-features \
             -F all-ciphersuites,sqlite-provider,libcrux-provider ${{ matrix.features.arg }}
